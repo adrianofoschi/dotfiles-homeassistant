@@ -1,0 +1,56 @@
+# Aggiorna lo stato di tutti i tasmota all'avvio
+- alias: Sonoff Annuncio
+  trigger:
+    - event: start
+      platform: homeassistant
+  action:
+    - data:
+        topic: cmnd/tasmotas/POWER
+      service: mqtt.publish
+    - data:
+        topic: cmnd/tasmotas/SHUTTERPOSITION
+      service: mqtt.publish
+- alias: Telegram sirena garage
+  trigger:
+    - entity_id: sensor.box_sirena
+      platform: state
+      to: 'ON'
+  action:
+    - data:
+        message: 'Sirena garage sta suonando!'
+      service: notify.telegram
+
+# Wrap azioni mqtts climatizzatori
+# Le azioni vengono triggerati su topic inesistenti
+# I topic vengono intercettati e girati ad uno script
+- alias: Climatizzatori mqtt wrap
+  trigger:
+    - platform: mqtt
+      topic: cmnd_wrap/ac_salone/mode
+    - platform: mqtt
+      topic: cmnd_wrap/ac_salone/temperature
+    - platform: mqtt
+      topic: cmnd_wrap/ac_salone/fan_mode
+  action:
+    - choose:
+        - conditions:
+            - "{{ trigger.topic.split('/')[2] == 'mode'  }}"
+          sequence:
+            - service: script.climate_set
+              data_template: 
+                climate: "{{ trigger.topic.split('/')[1]  }}"
+                mode: "{{ trigger.payload }}"      
+        - conditions:
+            - "{{ trigger.topic.split('/')[2] == 'temperature'  }}"
+          sequence: 
+            - service: script.climate_set
+              data_template:
+                climate: "{{ trigger.topic.split('/')[1]  }}"
+                temperature: "{{ trigger.payload }}"
+        - conditions:
+            - "{{ trigger.topic.split('/')[2] == 'fan_mode'  }}"
+          sequence: 
+            - service: script.climate_set
+              data_template:
+                climate: "{{ trigger.topic.split('/')[1]  }}"
+                fan_mode: "{{ trigger.payload }}"

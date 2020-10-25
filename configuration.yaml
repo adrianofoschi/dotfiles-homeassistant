@@ -1,0 +1,238 @@
+default_config:
+
+# Text to speech
+tts:
+  - platform: google_translate
+
+# Includes
+group: !include groups.yaml
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+# Intents per rhasspy
+intent_script: !include intents.yaml
+intent:
+
+# Zeroconf (evitare errore al boot)
+zeroconf:
+  default_interface: true
+
+# Mqtt broker
+mqtt:
+  broker: 127.0.0.1
+
+# Xiaomi Roborock S5 vacuum valetudo
+vacuum:
+  - platform: mqtt
+    name: rockrobo
+    schema: state
+    supported_features:
+      - start
+      - pause
+      - stop
+      - return_home
+      - battery
+      - status
+      - locate
+      - clean_spot
+      - fan_speed
+      - send_command
+    command_topic: "valetudo/rockrobo/command"
+    state_topic: "valetudo/rockrobo/state"
+    set_fan_speed_topic: "valetudo/rockrobo/set_fan_speed"
+    fan_speed_list:
+      - min
+      - medium
+      - high
+      - max
+      - mop
+    send_command_topic: "valetudo/rockrobo/custom_command"
+    json_attributes_topic: "valetudo/rockrobo/attributes"
+
+# TV LG
+webostv:
+    host: 192.168.0.110
+    name: "tv salone"
+    turn_on_action:
+      service: mqtt.publish
+      data:
+        topic: 'cmnd/ir_salone/IRsend'
+        payload: '{"Protocol":"NEC","Bits":32,"Data":"0x20DF10EF"}'
+        qos: 2
+media_player:
+media_extractor:
+
+# Luci
+light:
+  - platform: mqtt
+    name: "luce_salone"
+    state_topic: "stat/luce_salone/POWER"
+    command_topic: "cmnd/luce_salone/POWER"
+    availability_topic: "tele/luce_salone/LWT"
+    qos: 1
+    payload_on: "ON"
+    payload_off: "OFF"
+    payload_available: "Online"
+    payload_not_available: "Offline"
+    retain: false
+  - platform: mqtt
+    name: "luce_camera"
+    state_topic: "stat/luce_camera/POWER"
+    command_topic: "cmnd/luce_camera/POWER"
+    availability_topic: "tele/luce_camera/LWT"
+    qos: 1
+    payload_on: "ON"
+    payload_off: "OFF"
+    payload_available: "Online"
+    payload_not_available: "Offline"
+    retain: false
+
+# Sensors garage alarm
+sensor:
+  - platform: mqtt
+    name: "box_antifurto"
+    state_topic: "stat/abox-centrale/POWER"
+  - platform: mqtt
+    name: "box_sirena"
+    state_topic: "stat/abox-sirena/POWER"
+
+# Serranda garage
+cover:
+  - platform: mqtt
+    name: "Garage"
+    availability_topic: "tele/abox-serranda/LWT"
+    payload_available: "Online"
+    payload_not_available: "Offline"
+    position_topic: "stat/abox-serranda/RESULT"
+    value_template: >
+      {% if ('Shutter1' in value_json) and ('Position' in value_json.Shutter1) %}
+        {{ value_json.Shutter1.Position }}
+      {% else %}
+        {% if is_state('cover.garage', 'unknown') %}
+          50
+        {% else %}
+          {{ state_attr('cover.garage','current_position') }}
+        {% endif %}
+      {% endif %}    
+    position_open: 100
+    position_closed: 0
+    set_position_topic: "cmnd/abox-serranda/ShutterPosition1"
+    command_topic: "cmnd/abox-serranda/Backlog"
+    payload_open: "ShutterOpen1"
+    payload_close: "ShutterClose1"
+    payload_stop: "ShutterStop1"
+    retain: false
+    optimistic: false
+    qos: 1
+
+#android_ip_webcam:
+#  - host: 192.168.0.40
+
+# Allarme garage
+alarm_control_panel:
+  - platform: template
+    panels:
+      safe_alarm_panel:
+        name: "Antifurto garage"
+        value_template: >
+          {% if is_state('sensor.box_sirena', 'ON') %}
+            triggered
+          {% else %}
+            {% if is_state('sensor.box_antifurto', 'ON') %}
+              armed_away
+            {% else %}
+              {% if is_state('sensor.box_antifurto', 'OFF') %}
+                disarmed
+              {% else %}
+                unavailable
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        arm_away:
+          service: mqtt.publish
+          data:
+            topic: "cmnd/abox-centrale/POWER"
+            payload: on
+        arm_home:
+          service: mqtt.publish
+          data:
+            topic: "cmnd/abox-centrale/POWER"
+            payload: on
+        disarm:
+          - service: mqtt.publish
+            data:
+              topic: "cmnd/abox-centrale/POWER"
+              payload: off
+          - service: mqtt.publish
+            data:
+              topic: "cmnd/abox-sirena/POWER"
+              payload: off
+
+# Telegram bot per le notifiche
+telegram_bot:
+  platform: polling
+  api_key: !secret telegram_bot_api_key
+  allowed_chat_ids:
+    - !secret telegram_bot_chat_id
+
+# Notifiche tramite telegram
+notify:
+  - name: telegram
+    platform: telegram
+    chat_id: !secret telegram_bot_chat_id
+              
+# Climatizzatore salone
+climate:
+  - platform: mqtt
+    name: AC Salone
+    modes: ["auto","off","heat","cool","dry"]
+    mode_command_topic: "cmnd_wrap/ac_salone/mode"
+    mode_state_topic: "tele/ac_salone/RESULT"
+    mode_state_template: "{{ value_json.IrReceived.IRHVAC.Mode.lower() }}"    
+    min_temp: 18
+    max_temp: 30
+    temperature_command_topic: "cmnd_wrap/ac_salone/temperature"
+    temperature_state_topic: "tele/ac_salone/RESULT"
+    temperature_state_template: "{{ value_json.IrReceived.IRHVAC.Temp }}"
+    fan_modes: ["auto","low","medium","high"]
+    fan_mode_command_topic: "cmnd_wrap/ac_salone/fan_mode"
+    fan_mode_state_topic: "tele/ac_salone/RESULT"
+    fan_mode_state_template: >
+        {% set fan_speed = value_json.IrReceived.IRHVAC.FanSpeed.lower() %}
+        {% if fan_speed == 'auto' %}
+          auto
+        {% elif fan_speed == 'medium' %}
+          medium
+        {% elif fan_speed == 'min' %}
+          low
+        {% elif fan_speed == 'max' %}
+          high
+        {% endif %}
+    swing_modes: ["on","off"]
+  - platform: mqtt
+    name: AC Corridoio
+    modes: ["auto","off","heat","cool","dry"]
+    mode_command_topic: "cmnd_wrap/ac_corridoio/mode"
+    mode_state_topic: "tele/ac_corridoio/RESULT"
+    mode_state_template: "{{ value_json.IrReceived.IRHVAC.Mode.lower() }}"    
+    min_temp: 18
+    max_temp: 30
+    temperature_command_topic: "cmnd_wrap/ac_corridoio/temperature"
+    temperature_state_topic: "tele/ac_corridoio/RESULT"
+    temperature_state_template: "{{ value_json.IrReceived.IRHVAC.Temp }}"
+    fan_modes: ["auto","low","medium","high"]
+    fan_mode_command_topic: "cmnd_wrap/ac_corridoio/fan_mode"
+    fan_mode_state_topic: "tele/ac_corridoio/RESULT"
+    fan_mode_state_template: >
+        {% set fan_speed = value_json.IrReceived.IRHVAC.FanSpeed.lower() %}
+        {% if fan_speed == 'auto' %}
+          auto
+        {% elif fan_speed == 'medium' %}
+          medium
+        {% elif fan_speed == 'min' %}
+          low
+        {% elif fan_speed == 'max' %}
+          high
+        {% endif %}
+    swing_modes: ["on","off"]

@@ -1,0 +1,96 @@
+# Vacuum pulizia zone/stanze
+vacuum_giorno:
+    alias: "Pulizia zona giorno"
+    sequence:
+        - service: vacuum.send_command
+          data:
+            entity_id: vacuum.rockrobo
+            command: zoned_cleanup
+            params:
+              zone_ids: ['cucina','salone']
+
+vacuum_notte:
+    alias: "Pulizia zona notte"
+    sequence:
+        - service: vacuum.send_command
+          data:
+            entity_id: vacuum.rockrobo
+            command: zoned_cleanup
+            params:
+              zone_ids: ['camera','cameretta','bagno','bagnetto']
+        
+vacuum_cucina:
+    alias: "Pulizia Cucina"
+    sequence:
+        - service: vacuum.send_command
+          data:
+            entity_id: vacuum.rockrobo
+            command: zoned_cleanup
+            params:
+              zone_ids: ['cucina']
+
+vacuum_salone:
+    alias: "Pulizia Salone"
+    sequence:
+        - service: vacuum.send_command
+          data:
+            entity_id: vacuum.rockrobo
+            command: zoned_cleanup
+            params:
+              zone_ids: ['salone']
+
+vacuum_bagnetto:
+    alias: "Pulizia Bagnetto"
+    sequence:
+        - service: vacuum.send_command
+          data:
+            entity_id: vacuum.rockrobo
+            command: zoned_cleanup
+            params:
+              zone_ids: ['bagnetto']
+
+vacuum_bagno:
+    alias: "Pulizia Bagno"
+    sequence:
+        - service: vacuum.send_command
+          data:
+            entity_id: vacuum.rockrobo
+            command: zoned_cleanup
+            params:
+              zone_ids: ['bagno']
+
+vacuum_camera:
+    alias: "Pulizia Camera"
+    sequence:
+        - service: vacuum.send_command
+          data:
+            entity_id: vacuum.rockrobo
+            command: zoned_cleanup
+            params:
+              zone_ids: ['camera']
+
+vacuum_cameretta:
+    alias: "Pulizia Cameretta"
+    sequence:
+        - service: vacuum.send_command
+          data:
+            entity_id: vacuum.rockrobo
+            command: zoned_cleanup
+            params:
+              zone_ids: ['cameretta']
+
+# Climatizzatori LG settaggio con IRHVAC
+# input: climate*, [mode|temperature|fan_mode]*
+climate_set:
+    alias: "Settare climatizzatore"
+    sequence:
+        - service: mqtt.publish
+          data_template:
+            topic: "{{ 'cmnd/' + climate + '/IRhvac' }}"
+            payload: >
+              {% set mode = mode if mode else states('climate.' + climate) %}
+              {% set power = 'on' if mode != 'off' else 'off' %}
+              {% set temp = temperature if temperature else states.climate[climate].attributes.temperature %}
+              {% set temp = temp if mode != 'dry' and mode != 'auto' else '22' %}
+              {% set fan_speed = fan_mode if fan_mode else states.climate[climate].attributes.fan_mode %}
+              {"Vendor":"LG2","Power":"{{power}}","Mode":"{{mode}}","FanSpeed":"{{fan_speed}}","Temp":{{temp | int}}}

@@ -1,0 +1,136 @@
+# Luci on/off
+LightOff:
+  action:
+    - service: light.turn_off
+      data_template:
+        entity_id: light.{{ light }}
+
+LightOn:
+  action:
+    - service: light.turn_on
+      data_template:
+        entity_id: light.{{ light }}
+
+# Pulizia vacuum
+Clean:
+  action:
+    - service: vacuum.start
+      data:
+        entity_id: vacuum.rockrobo
+
+CleanRoom:
+  action:
+    - service: vacuum.send_command
+      data:
+        entity_id: vacuum.rockrobo
+        command: zoned_cleanup
+      data_template:
+        params:
+          zone_ids: ["{{ room }}"]
+
+CleanChangeMode:
+  action:
+    - service: vacuum.set_fan_speed
+      data:
+        entity_id: vacuum.rockrobo
+      data_template:
+        fan_speed: "{{ speed }}"
+
+CleanStop:
+  action:
+    - service: vacuum.return_to_base
+      data:
+        entity_id: vacuum.rockrobo
+
+CleanPause:
+  action:
+    - service: vacuum.pause
+      data:
+        entity_id: vacuum.rockrobo
+
+# TV LG
+TvOff:
+  action:
+    - service: media_player.turn_off
+      data:
+        entity_id: media_player.tv_salone
+
+TvOn:
+  action:
+    - service: media_player.turn_on
+      data:
+        entity_id: media_player.tv_salone
+
+TvVolumeUp:
+  action:
+    - service: media_player.volume_up
+      data:
+        entity_id: media_player.tv_salone
+
+TvVolumeDown:
+  action:
+    - service: media_player.volume_down
+      data:
+        entity_id: media_player.tv_salone
+
+TvVolumeMute:
+  action:
+    - service: media_player.volume_mute
+      data:
+        entity_id: media_player.tv_salone
+        is_volume_muted: true
+
+TvChangeChannel:
+  action:
+    - service: media_player.play_media
+      data:
+        media_content_type: "channel"
+        entity_id: media_player.tv_salone
+      data_template:
+        media_content_id: "{{ channel|int }}"
+
+TvChangeSource:
+  action:
+    - service: media_player.select_source
+      data:
+        entity_id: media_player.tv_salone
+      data_template:
+        source: "{{ source }}"
+
+PlayMusic:
+  action:
+    - service: media_player.turn_on
+      data:
+       entity_id: media_player.tv_salone
+    - service: media_player.play_media
+      data:
+        media_content_type: "channel"
+        entity_id: media_player.tv_salone
+        media_content_id: 36
+
+#climate
+ClimateCool:
+  action:
+    - service: script.climate_set
+      data_template:
+        climate: "{{ climate }}"
+        temperature: 18
+        mode: "cool"
+        fan_mode: "auto"
+
+ClimateHeat:
+  action:
+    - service: script.climate_set
+      data_template:
+        climate: "{{ climate }}"
+        temperature: 29
+        mode: "heat"
+        fan_mode: "auto"
+
+ClimateOff:
+  action:
+    - service: script.climate_set
+      data_template:
+        climate: "{{ climate }}"
+        temperature: 15
+        mode: "off"
